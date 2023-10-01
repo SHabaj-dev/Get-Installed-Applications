@@ -3,7 +3,8 @@ package com.sbz.extractpackagenames;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
@@ -37,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void getallapps(View view) {
         if (hasUsageStatsPermission()) {
-            getAppInfo();
+            getUserVisibleApps();
         } else {
             requestUsageStatsPermission();
         }
@@ -55,29 +56,29 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    public void getAppInfo() {
-        final Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
-        mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+    private void getUserVisibleApps() {
+        PackageManager packageManager = getPackageManager();
+        List<ApplicationInfo> applicationInfoList = packageManager.getInstalledApplications(PackageManager.GET_META_DATA);
 
-        List<ResolveInfo> ril = getPackageManager().queryIntentActivities(mainIntent, 0);
+        Intent launcherIntent = new Intent(Intent.ACTION_MAIN, null);
+        launcherIntent.addCategory(Intent.CATEGORY_LAUNCHER);
 
-        List<ModelClass> list = new ArrayList<>();
-        for (ResolveInfo ri : ril) {
-            if (ri.activityInfo != null) {
-                String appName = ri.activityInfo.loadLabel(getPackageManager()).toString();
-                String packageName = ri.activityInfo.packageName;
-                list.add(new ModelClass(appName, packageName));
+        List<ModelClass> apps = new ArrayList<>();
+
+        for (ApplicationInfo applicationInfo : applicationInfoList) {
+            // Check if the application has a launcher activity
+            launcherIntent.setPackage(applicationInfo.packageName);
+            if (packageManager.queryIntentActivities(launcherIntent, 0).size() > 0) {
+                String appName = packageManager.getApplicationLabel(applicationInfo).toString();
+                String packageName = applicationInfo.packageName;
+                apps.add(new ModelClass(appName, packageName));
             }
         }
-        AdapterClass adapterClass = new AdapterClass(MainActivity.this, list);
+
+        AdapterClass adapterClass = new AdapterClass(MainActivity.this, apps);
         listView.setAdapter(adapterClass);
 
-        text.setText(ril.size() + " Apps are installed");
+        text.setText(apps.size() + " User-Installed Apps");
     }
 
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-    }
 }
